@@ -43,10 +43,10 @@ for col in ['Profession', 'City', 'Degree']:
         df_combined[col] = df_combined[col].str.replace('.', '', regex=False)
     df_combined = keep_frequent_categories(df_combined, col)
 
-# Create 'Pressure' feature based on 'Work Pressure' or 'Academic Pressure'
+# Create 'Pressure' feature based on work or academic pressure
 df_combined['Pressure'] = df_combined.apply(
-    lambda row: row['Work Pressure'] if row['Working Professional or Student'] == 'working professional'
-    else row['Academic Pressure'] if row['Working Professional or Student'] == 'student' else np.nan, axis=1
+    lambda row: row['Work Pressure'] if row['Working Professional or Student'] == 'Working Professional'
+    else row['Academic Pressure'] if row['Working Professional or Student'] == 'Student' else np.nan, axis=1
 )
 
 # Replace 'None' with NaN in 'Pressure'
@@ -56,10 +56,10 @@ df_combined['Pressure'].replace('None', np.nan, inplace=True)
 pressure_median = df_combined['Pressure'].median()
 df_combined['Pressure'].fillna(pressure_median, inplace=True)
 
-# Create 'Satisfaction' feature based on 'JobSatisfaction' or 'StudySatisfaction'
+# Create 'Satisfaction' feature based on job or study satisfaction
 df_combined['Satisfaction'] = df_combined.apply(
-    lambda row: row['JobSatisfaction'] if row['Working Professional or Student'] == 'working professional'
-    else row['Study Satisfaction'] if row['Working Professional or Student'] == 'student' else np.nan, axis=1
+    lambda row: row['Job Satisfaction'] if row['Working Professional or Student'] == 'Working Professional'
+    else row['Study Satisfaction'] if row['Working Professional or Student'] == 'Student' else np.nan, axis=1
 )
 
 # Replace 'None' with NaN
@@ -132,8 +132,8 @@ scoring = make_scorer(accuracy_score)
 
 # Define cross-validation strategy
 skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=rs)
-# Optimize XGBoost hyperparameters
 
+# Optimize XGBoost hyperparameters
 def objective_xgb(trial):
     params = {
         'n_estimators': trial.suggest_int('n_estimators', 500, 2000),
@@ -145,10 +145,9 @@ def objective_xgb(trial):
         'reg_lambda': trial.suggest_float('reg_lambda', 0, 5),
         'use_label_encoder': False,
         'random_state': rs,
-        'tree_method': 'gpu_hist'  # Use GPU if available
+        'tree_method': 'gpu_hist'
     }
     xgb_model = XGBClassifier(**params)
-    # Set n_jobs=1 to prevent parallel processing conflicts with GPU
     scores = cross_val_score(xgb_model, X_train_preprocessed, y_train, cv=skf, scoring=scoring, n_jobs=-1)
     return scores.mean()
 
@@ -158,19 +157,18 @@ xgb_study.optimize(objective_xgb, n_trials=5)
 # Optimize CatBoost hyperparameters
 def objective_catboost(trial):
     params = {
-        'iterations': trial.suggest_int('iterations', 500, 1000),  # Reduced upper limit to save memory
-        'depth': trial.suggest_int('depth', 4, 8),  # Reduced range
-        'learning_rate': trial.suggest_loguniform('learning_rate', 0.01, 0.1),  # Smaller range
+        'iterations': trial.suggest_int('iterations', 500, 1000),
+        'depth': trial.suggest_int('depth', 4, 8),
+        'learning_rate': trial.suggest_loguniform('learning_rate', 0.01, 0.1),
         'l2_leaf_reg': trial.suggest_loguniform('l2_leaf_reg', 1e-3, 10.0),
         'bagging_temperature': trial.suggest_float('bagging_temperature', 0.0, 1.0),
         'random_strength': trial.suggest_float('random_strength', 0.0, 10.0),
-        'border_count': trial.suggest_int('border_count', 32, 128),  # Reduced upper limit
-        'task_type': 'CPU',  # Use CPU to avoid GPU memory issues during tuning
+        'border_count': trial.suggest_int('border_count', 32, 128),
+        'task_type': 'CPU',
         'verbose': 0,
         'random_state': rs,
     }
     cat_model = CatBoostClassifier(**params)
-    # Use n_jobs=1 and CPU for CatBoost during tuning
     scores = cross_val_score(cat_model, X_train_preprocessed, y_train, cv=skf, scoring=scoring, n_jobs=1)
     return scores.mean()
 
@@ -181,9 +179,9 @@ catboost_study.optimize(objective_catboost, n_trials=5)
 def objective_lgbm(trial):
     params = {
         'n_estimators': trial.suggest_int('n_estimators', 500, 2000),
-        'num_leaves': trial.suggest_int('num_leaves', 31, 128),  # Reduced upper limit
+        'num_leaves': trial.suggest_int('num_leaves', 31, 128),
         'max_depth': trial.suggest_int('max_depth', -1, 15),
-        'learning_rate': trial.suggest_loguniform('learning_rate', 0.01, 0.1),  # Smaller range
+        'learning_rate': trial.suggest_loguniform('learning_rate', 0.01, 0.1),
         'min_child_samples': trial.suggest_int('min_child_samples', 5, 100),
         'subsample': trial.suggest_float('subsample', 0.5, 1.0),
         'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
@@ -203,12 +201,12 @@ lgbm_study.optimize(objective_lgbm, n_trials=5)
 best_xgb_params = xgb_study.best_params
 best_xgb_params['use_label_encoder'] = False
 best_xgb_params['random_state'] = rs
-best_xgb_params['tree_method'] = 'gpu_hist'  # Use GPU if available
+best_xgb_params['tree_method'] = 'gpu_hist'
 best_xgb_model = XGBClassifier(**best_xgb_params)
 
 # Get the best CatBoost model
 best_catboost_params = catboost_study.best_params
-best_catboost_params['task_type'] = 'GPU'  # Use GPU for final training
+best_catboost_params['task_type'] = 'GPU'
 best_catboost_params['verbose'] = 0
 best_catboost_params['random_state'] = rs
 best_catboost_model = CatBoostClassifier(**best_catboost_params)
