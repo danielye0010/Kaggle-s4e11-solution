@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+
+# Kaggle competition data
+train.csv
+test.csv
+sample_submission.csv
+
+# Generated submissions / model artifacts
+submission*.csv
+AutogluonModels/

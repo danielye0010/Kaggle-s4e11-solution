@@ -1,0 +1,9 @@
+autogluon.tabular
+catboost
+category-encoders
+lightgbm
+numpy
+optuna
+pandas
+scikit-learn
+xgboost
