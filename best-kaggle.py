@@ -76,8 +76,10 @@ df_combined["Satisfaction"].fillna(
     df_combined["Satisfaction"].median(), inplace=True
 )
 
-# Interaction features
-df_combined["PS_ratio"] = df_combined["Pressure"] / df_combined["Satisfaction"]
+# Interaction features. Treat zero satisfaction as missing for the ratio so the
+# downstream median imputer handles it instead of producing infinity.
+satisfaction_denominator = df_combined["Satisfaction"].replace(0, np.nan)
+df_combined["PS_ratio"] = df_combined["Pressure"] / satisfaction_denominator
 df_combined["PF_factor"] = (
     df_combined["Pressure"] * df_combined["Financial Stress"]
 )
