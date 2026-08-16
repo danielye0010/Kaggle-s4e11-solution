@@ -59,7 +59,7 @@ df_combined['Pressure'].fillna(pressure_median, inplace=True)
 # Create 'Satisfaction' feature based on 'JobSatisfaction' or 'StudySatisfaction'
 df_combined['Satisfaction'] = df_combined.apply(
     lambda row: row['JobSatisfaction'] if row['Working Professional or Student'] == 'working professional'
-    else row['StudySatisfaction'] if row['Working Professional or Student'] == 'student' else np.nan, axis=1
+    else row['Study Satisfaction'] if row['Working Professional or Student'] == 'student' else np.nan, axis=1
 )
 
 # Replace 'None' with NaN
@@ -237,8 +237,8 @@ stacking_ensemble.fit(X_train_preprocessed, y_train)
 # Make predictions on the test data
 test_preds = stacking_ensemble.predict(X_test_preprocessed)
 
-# Prepare submission DataFrame
-submission = pd.DataFrame({'id': df_test['id'], 'class': test_preds})
+# Prepare Kaggle submission DataFrame
+submission = pd.DataFrame({'id': df_test['id'], 'Depression': test_preds.astype(int)})
 
 # Save predictions to CSV file
 submission.to_csv('submission.csv', index=False)
