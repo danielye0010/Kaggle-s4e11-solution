@@ -1,63 +1,116 @@
-# Kaggle S4E11 solution
+# Kaggle S4E11 — Mental Health Classification
 
-The competition, Exploring Mental Health Data comes from Kaggle Playground S4E11, contains a synthetic dataset designed to identify factors contributing to the risk of depression. This competition is active from Nov 1, 2024 to Nov 30, 2024, with 2,891 Participants, 23,174 Submissions. 
+A feature-engineered ensemble solution for Kaggle Playground Series S4E11, **Exploring Mental Health Data**, combining domain-specific feature construction, gradient-boosted trees, Optuna tuning, stacking, and AutoML benchmarking.
 
----
-
-## Workflow Components
-
-### 1. Tailored Data Preprocessing
-Custom preprocessing was designed to address dataset-specific characteristics while minimizing information loss:
-
-- **Missing Numerical Values**: Imputed using the median to ensure robustness against outliers.
-- **Missing Categorical Values**: Imputed with the label `'missing'` to retain the absence of information as a separate category. For variables like `Academic Pressure`, `Work Pressure`, `Job Satisfaction`, and `Study Satisfaction`, missing values were left unaltered to preserve implicit patterns.
-- **Frequent Category Retention**: Categories with fewer than 50 occurrences were replaced with `'Na'` for variables such as `Profession`, `City`, and `Degree`, reducing dimensionality.
-- **Data Cleaning**: Text entries in categorical variables were standardized to ensure consistency (e.g., unifying `BS` and `B.S.`).
-
----
-
-### 2. Advanced Feature Engineering
-Feature engineering was implemented to enhance the dataset's predictive power by creating meaningful, domain-specific features:
-
-- **Unified Features**:
-  - `Pressure`: Combined `Academic Pressure` (students) and `Work Pressure` (professionals) into a single variable.
-  - `Satisfaction`: Merged `Study Satisfaction` and `Job Satisfaction` into one variable to capture overall contentment.
-- **Feature Removal**:
-  - Removed variables like `Name` and `ID` as they do not contribute to the prediction task.
-- **New Interaction Features**:
-  - `PS Ratio`: \(\text{Pressure} / \text{Satisfaction}\), capturing the balance between stress and satisfaction.
-  - `PF Factor`: \(\text{Pressure} \times \text{Financial Stress}\), reflecting the compounded impact of stress and financial pressure.
-  - `Age_WorkPressure`: \(\text{Age} \times \text{Work Pressure}\), exploring age-related differences in stress response.
-- **Target Encoding**:
-  - Applied to variables with high cardinality, such as `City` and `Profession`, replacing categories with the mean target (`Depression`) value, reducing feature dimensionality.
-
----
-
-### 3. Model Training
-Gradient-boosted decision tree models were selected for their performance and ability to handle heterogeneous data:
-
-- **Models Used**:
-  - **XGBoost**: Optimized for scalability and structured datasets.
-  - **CatBoost**: Effective at handling categorical data with minimal preprocessing.
-  - **LightGBM**: Memory-efficient and fast for large datasets.
-- **Stacking**:
-  - Predictions from individual models were combined using a logistic regression meta-model to leverage the strengths of each base model.
-- **Cross-Validation**:
-  - A 5-fold cross-validation strategy was used to ensure robust evaluation and reduce overfitting.
-- **Hyperparameter Tuning**:
-  - The Optuna library was utilized for efficient exploration of hyperparameters like learning rate, tree depth, and estimators to maximize cross-validation accuracy.
-
----
+The recorded manual competition workflow achieved **0.94360 accuracy and rank 294 / Top 10%**. Follow-up experiments reached a best recorded score of **0.94488**.
 
 ## Results
 
-The manual ML workflow demonstrated strong performance on the Kaggle leaderboard:
+| Approach | Recorded accuracy | Result |
+|---|---:|---|
+| **Manual ML / competition workflow** | **0.94360** | **Rank 294 / Top 10%** |
+| KANE AutoML benchmark | 0.93847 | Fast 5-minute AutoML baseline |
+| **Custom ensemble experiment** | **0.94488** | Best recorded experimental score |
+| Preprocessing + AutoGluon | 0.94477 | Strong AutoML experiment |
 
-| Approach                    | Training Time | Accuracy  | Leaderboard Rank |
-|-----------------------------|---------------|-----------|------------------|
-| **Manual ML**               | 60 minutes    | 0.94360   | Top 10% (294/2891) |
-| **KANE (AutoML)**           | 5 minutes     | 0.93847   | Top 57% (1645/2891) |
-| **Custom Ensemble**         | N/A           | 0.94488   | 1st Place         |
-| **Preprocessing + AutoGluon** | N/A         | 0.94477   | 4th Place         |
+The manual workflow combines targeted preprocessing and feature engineering with XGBoost, CatBoost, LightGBM, Optuna, and a logistic-regression stacking layer.
 
+## Competition task
 
+The task is binary classification of the `Depression` target from demographic, academic, professional, lifestyle, and mental-health survey variables.
+
+The project focuses on extracting useful structure from mixed numerical/categorical survey data rather than relying on a single off-the-shelf model.
+
+## Feature engineering
+
+Several task-specific features are constructed before model training:
+
+- **Pressure** — combines `Academic Pressure` for students and `Work Pressure` for working professionals.
+- **Satisfaction** — combines `Study Satisfaction` and `Job Satisfaction` into one role-aware feature.
+- **PS ratio** — pressure divided by satisfaction.
+- **PF factor** — pressure multiplied by financial stress.
+- **Age × Work Pressure** — interaction capturing age-dependent work-pressure effects.
+- **Rare-category filtering** — compresses low-frequency values in high-cardinality fields such as profession, city, and degree.
+- **Target encoding** — adds compact representations for city and profession.
+
+## Ensemble pipeline
+
+`best-kaggle.py` implements the full manual workflow:
+
+1. clean and combine student/professional features;
+2. standardize numerical variables and encode categorical variables;
+3. tune **XGBoost**, **CatBoost**, and **LightGBM** with Optuna;
+4. use stratified 5-fold cross-validation during model selection;
+5. combine the tuned models with a **logistic-regression stacking classifier**;
+6. train the final ensemble and generate `submission.csv`.
+
+The script supports either CUDA or CPU execution:
+
+```bash
+# GPU (default)
+python best-kaggle.py
+
+# CPU
+KAGGLE_DEVICE=cpu python best-kaggle.py
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:KAGGLE_DEVICE="cpu"
+python best-kaggle.py
+```
+
+## AutoGluon benchmark
+
+`automlkaggle.py` provides a compact AutoML comparison using AutoGluon Tabular with bagging and stacking. It trains for up to one hour and writes:
+
+```text
+submission_autogluon.csv
+```
+
+This provides a useful comparison between a manually engineered ensemble and a high-quality AutoML pipeline.
+
+## Installation
+
+```bash
+pip install -r requirements.txt
+```
+
+Place the Kaggle competition files in the repository root:
+
+```text
+train.csv
+test.csv
+```
+
+Competition data and generated submissions are intentionally excluded from Git.
+
+## Run
+
+Manual tuned ensemble:
+
+```bash
+python best-kaggle.py
+```
+
+AutoGluon benchmark:
+
+```bash
+python automlkaggle.py
+```
+
+## What this project demonstrates
+
+- feature engineering on heterogeneous tabular data
+- high-cardinality categorical handling
+- gradient-boosting model selection
+- Optuna hyperparameter optimization
+- stacking ensembles
+- GPU-accelerated tabular ML
+- AutoML vs manually engineered workflow comparison
+- end-to-end Kaggle submission generation
+
+## Evaluation note
+
+The **rank 294 / Top 10%** result is the recorded competition result for the manual workflow. The 0.94488 and 0.94477 values are retained as later experimental scores and are not presented as official 1st- or 4th-place leaderboard finishes.
